@@ -1,6 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional
 from config import MONSTER_FREQUENCY, MONSTER_PROBABILITY
+from console_formatter import console
 
 class Monster:
     """
@@ -22,6 +23,7 @@ class Monster:
             rule_engine: Motor de reglas para comportamiento
         """
         self.id = monster_id
+        self.id_formatted = f"M{monster_id:03d}"  # Formato M001, M002, etc.
         self.position = list(position)  # Convertir a lista para mutabilidad
         self.environment = environment
         self.rule_engine = rule_engine
@@ -166,7 +168,7 @@ class Monster:
                 self._move_to_direction(chosen_direction)
                 
         except Exception as e:
-            print(f"❌ Error ejecutando acción probabilística: {e}")
+            console.error(f"Error ejecutando acción probabilística: {e}")
     
     def _execute_deterministic_action(self, action: str):
         """
@@ -186,7 +188,7 @@ class Monster:
             self._move_to_direction(direction)
             
         except Exception as e:
-            print(f"❌ Error ejecutando acción determinística: {e}")
+            console.error(f"Error ejecutando acción determinística: {e}")
     
     def _move_to_direction(self, direction: str):
         """

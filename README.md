@@ -8,7 +8,8 @@ Este proyecto implementa una simulación 3D completa de robots monstruicidas que
 
 ```
 examen-parcial/
-├── main.py                    # Script principal de simulación
+├── main.py                    # Script principal de simulación básica
+├── realtime_3d.py             # Simulación interactiva con interfaz web (RECOMENDADO)
 ├── config.py                  # Configuración centralizada
 ├── environment.py             # Clase Environment 3D
 ├── robot.py                   # Clase Robot con sensores y memoria
@@ -78,6 +79,9 @@ examen-parcial/
 - Monstruos con múltiples opciones de visualización
 - Bordes grises entre cubos
 - Información detallada en leyenda
+- 🌐 **Interfaz web interactiva** con Dash
+- ⏯️ **Control en tiempo real** (pausa, paso a paso, reinicio)
+- 📊 **Visualización 3D interactiva** con Plotly
 
 ### 📊 **Configuración Centralizada**
 
@@ -116,19 +120,144 @@ El sistema ha sido probado exhaustivamente:
 plotly>=5.0.0
 pandas>=1.3.0
 numpy>=1.21.0
+dash>=2.0.0
 ```
 
+**Nota:** `dash` es necesario para la interfaz web interactiva de `realtime_3d.py`
+
 ### 🚀 **Ejecución**
+
+#### 📱 **Simulación en Tiempo Real (Recomendado)**
+
+Para ejecutar la simulación interactiva con interfaz web:
 
 ```bash
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Ejecutar simulación completa
-python main.py
+# Ejecutar simulación en tiempo real
+python realtime_3d.py
+```
 
+**Características de la simulación en tiempo real:**
+- 🌐 Interfaz web en `http://127.0.0.1:8081`
+- ⏯️ Control paso a paso o ejecución continua
+- 🔄 Reinicio de simulación en tiempo real
+- 📊 Visualización 3D interactiva con Plotly
+- 📝 Logs detallados en consola
+
+#### 🖥️ **Simulación Básica**
+
+Para ejecutar la simulación básica sin interfaz web:
+
+```bash
+# Ejecutar simulación básica
+python main.py
+```
+
+#### 🪟 **Recomendaciones para Windows**
+
+**Opción 1: Usando PowerShell (Recomendado)**
+1. **Instalar Python 3.8+** desde [python.org](https://python.org)
+2. **Abrir PowerShell** como administrador
+3. **Navegar al directorio del proyecto:**
+   ```powershell
+   cd C:\ruta\a\tu\proyecto\examen-parcial
+   ```
+4. **Instalar dependencias:**
+   ```powershell
+   pip install plotly pandas numpy dash
+   ```
+5. **Ejecutar la simulación:**
+   ```powershell
+   python realtime_3d.py
+   ```
+6. **Abrir navegador** en `http://127.0.0.1:8081`
+
+**Opción 2: Usando CMD**
+1. **Abrir CMD** como administrador
+2. **Navegar al directorio:**
+   ```cmd
+   cd C:\ruta\a\tu\proyecto\examen-parcial
+   ```
+3. **Instalar dependencias:**
+   ```cmd
+   pip install plotly pandas numpy dash
+   ```
+4. **Ejecutar simulación:**
+   ```cmd
+   python realtime_3d.py
+   ```
+
+**Opción 3: Usando Visual Studio Code**
+1. **Abrir VS Code** y abrir la carpeta del proyecto
+2. **Abrir terminal integrado** (Ctrl + `)
+3. **Ejecutar comandos:**
+   ```bash
+   pip install plotly pandas numpy dash
+   python realtime_3d.py
+   ```
+
+**⚠️ Problemas comunes en Windows:**
+- Si `python` no funciona, usar `py` o `python3`
+- Si hay problemas de permisos, ejecutar como administrador
+- Si el puerto 8081 está ocupado, cambiar el puerto en `realtime_3d.py`
+
+#### ☁️ **Recomendaciones para Google Colab**
+
+1. **Subir archivos** al Colab:
+   ```python
+   # Subir archivos necesarios
+   from google.colab import files
+   uploaded = files.upload()
+   ```
+
+2. **Instalar dependencias:**
+   ```python
+   !pip install plotly pandas numpy dash
+   ```
+
+3. **Ejecutar simulación:**
+   ```python
+   !python realtime_3d.py
+   ```
+
+4. **Acceder a la interfaz web:**
+   - Usar `ngrok` para exponer el puerto:
+   ```python
+   !pip install pyngrok
+   from pyngrok import ngrok
+   
+   # Exponer puerto 8081
+   public_url = ngrok.connect(8081)
+   print(f"Accede a: {public_url}")
+   ```
+
+#### 🐧 **Recomendaciones para Linux/macOS**
+
+```bash
+# Instalar dependencias
+pip3 install -r requirements.txt
+
+# Ejecutar simulación
+python3 realtime_3d.py
+
+# Abrir navegador automáticamente
+xdg-open http://127.0.0.1:8081  # Linux
+open http://127.0.0.1:8081      # macOS
+```
+
+#### 🔧 **Comandos Útiles**
+
+```bash
 # Ver documentación
 ls docs/
+
+# Ejecutar con logs detallados
+python realtime_3d.py --verbose
+
+# Ejecutar simulación paso a paso
+python realtime_3d.py --step-by-step
 ```
 
 ### 📚 **Documentación**

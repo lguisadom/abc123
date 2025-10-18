@@ -16,8 +16,8 @@ INTERNAL_EMPTY_RATIO = 0.3  # Ratio de zonas vacías internas (30% del porcentaj
 # =============================================================================
 # 🤖👹 CONFIGURACIÓN DE ENTIDADES
 # =============================================================================
-NUM_ROBOTS = 1              # Número de robots en la simulación
-NUM_MONSTERS = 1            # Número de monstruos en la simulación
+NUM_ROBOTS = 20              # Número de robots en la simulación
+NUM_MONSTERS = 20            # Número de monstruos en la simulación
 
 # =============================================================================
 # 📍 CONFIGURACIÓN DE POSICIONAMIENTO DE ROBOTS
@@ -30,9 +30,9 @@ MONSTER_FIXED_POSITION = (1, 1, 1)  # Posición fija si MONSTER_POSITION_MODE = 
 # =============================================================================
 # ⚙️ CONFIGURACIÓN DE SIMULACIÓN
 # =============================================================================
-SIMULATION_STEPS = 100      # Número de pasos de simulación
+SIMULATION_STEPS = 1000     # Número de pasos de simulación
 ROBOT_FREQUENCY = 1.0       # Frecuencia del robot (1 percepción por segundo)
-MONSTER_FREQUENCY = 3     # Frecuencia del monstruo (cada K segundos)
+MONSTER_FREQUENCY = 5       # Frecuencia del monstruo (cada K segundos)
 MONSTER_PROBABILITY = 0.5   # Probabilidad de que el monstruo se mueva en cada turno (parámetro p)
 
 # =============================================================================
@@ -64,7 +64,7 @@ MONSTER_SIZE_PERCENTAGE = 0.7  # Porcentaje del tamaño del cubo que ocupa el mo
 # =============================================================================
 # 🎭 CONFIGURACIÓN DE OPACIDAD Y TRANSPARENCIA
 # =============================================================================
-FREE_ZONE_OPACITY = 0.7         # Opacidad de las zonas libres
+FREE_ZONE_OPACITY = 0.7        # Opacidad de las zonas libres
 MONSTER_OPACITY = 0.7          # Opacidad de los monstruos
 MONSTER_SHADOW_OPACITY = 0.5   # Opacidad de sombras de monstruos
 BORDER_OPACITY = 0.2           # Opacidad de bordes
@@ -78,6 +78,25 @@ MONSTER_CENTER_OFFSET = 0.5    # Offset para centrar monstruos en cubos
 # 👹 CONFIGURACIÓN DE VISUALIZACIÓN DE MONSTRUOS
 # =============================================================================
 MONSTER_VISUALIZATION = "void"  # Opciones: "cloud", "mist", "energy", "void", "shadow"
+
+# =============================================================================
+# 🎨 CONFIGURACIÓN DE COLORES
+# =============================================================================
+# Colores para robots
+ROBOT_COLOR = "cyan"                    # Color principal del robot
+ROBOT_ARROW_COLOR = "red"               # Color de la flecha de orientación del robot
+
+# Colores para monstruos (según tipo de visualización)
+MONSTER_COLOR_CLOUD = "red"             # Color para monstruos tipo "cloud"
+MONSTER_COLOR_MIST = "purple"           # Color para monstruos tipo "mist"
+MONSTER_COLOR_ENERGY = "yellow"         # Color para monstruos tipo "energy"
+MONSTER_COLOR_VOID = "red"            # Color para monstruos tipo "void"
+MONSTER_COLOR_SHADOW = "gray"           # Color para monstruos tipo "shadow"
+
+# Colores para zonas del entorno
+FREE_ZONE_COLOR = "lightgreen"          # Color de las zonas libres
+EMPTY_ZONE_COLOR = "black"                # Color de las zonas vacías internas
+CUBE_BORDER_COLOR = "gray"              # Color de los bordes de los cubos
 
 # =============================================================================
 # 📝 NOTAS DE CONFIGURACIÓN

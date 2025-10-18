@@ -18,12 +18,15 @@ from environment import Environment
 from robot import Robot
 from monster import Monster
 from rule_engine import RuleEngine
+from console_formatter import console
+from robot_logger import RobotLogger
 from config import *
 
 class RealTimeSimulation:
     def __init__(self):
         self.environment = Environment()
         self.rule_engine = RuleEngine()
+        self.robot_logger = RobotLogger()
         self.robots = []
         self.monsters = []
         self.step = 0
@@ -43,47 +46,49 @@ class RealTimeSimulation:
         
     def initialize_simulation(self):
         """Inicializa la simulación"""
-        print("🤖 Simulación 3D en Tiempo Real - Robots Monstruicidas vs Monstruos")
-        print("=" * 70)
+        console.header("🤖 Simulación 3D en Tiempo Real - Robots Monstruicidas vs Monstruos")
         
         # Cargar reglas
-        print("📋 Cargando motor de reglas...")
+        console.info("Cargando motor de reglas...")
         if not self.rule_engine.load_rules():
-            print("❌ Error: No se pudieron cargar las reglas CSV")
+            console.error("No se pudieron cargar las reglas CSV")
             return False
         
         # Crear robots y monstruos
-        print(f"\n🤖 Creando {NUM_ROBOTS} robots y {NUM_MONSTERS} monstruos...")
+        console.info(f"Creando {NUM_ROBOTS} robots y {NUM_MONSTERS} monstruos...")
         
         for i in range(NUM_ROBOTS):
+            robot_id = i + 1  # IDs empiezan desde 1
             if ROBOT_POSITION_MODE == "fixed":
                 pos = ROBOT_FIXED_POSITION
-                print(f"   Robot {i}: Posición fija {pos}")
+                console.info(f"Robot {robot_id}: Posición fija {pos}")
             else:
                 pos = self.environment.get_random_internal_free_position()
-                print(f"   Robot {i}: Posición aleatoria interna {pos}")
+                console.info(f"Robot {robot_id}: Posición aleatoria interna {pos}")
             
             if pos:
-                robot = Robot(i, pos, self.environment, self.rule_engine)
+                robot = Robot(robot_id, pos, self.environment, self.rule_engine, self.robot_logger)
                 self.robots.append(robot)
+                self.robot_logger.register_robot(robot_id)
             else:
-                print(f"   ⚠️ No se pudo crear Robot {i}: No hay posiciones libres internas")
+                console.warning(f"No se pudo crear Robot {robot_id}: No hay posiciones libres internas")
         
         for i in range(NUM_MONSTERS):
+            monster_id = i + 1  # IDs empiezan desde 1
             if MONSTER_POSITION_MODE == "fixed":
                 pos = MONSTER_FIXED_POSITION
-                print(f"   Monstruo {i}: Posición fija {pos}")
+                console.info(f"Monstruo {monster_id}: Posición fija {pos}")
             else:
                 pos = self.environment.get_random_internal_free_position()
-                print(f"   Monstruo {i}: Posición aleatoria interna {pos}")
+                console.info(f"Monstruo {monster_id}: Posición aleatoria interna {pos}")
             
             if pos:
-                monster = Monster(i, pos, self.environment, self.rule_engine)
+                monster = Monster(monster_id, pos, self.environment, self.rule_engine)
                 self.monsters.append(monster)
             else:
-                print(f"   ⚠️ No se pudo crear Monstruo {i}: No hay posiciones libres internas")
+                console.warning(f"No se pudo crear Monstruo {monster_id}: No hay posiciones libres internas")
         
-        print(f"✅ Creados {len(self.robots)} robots y {len(self.monsters)} monstruos")
+        console.success(f"Creados {len(self.robots)} robots y {len(self.monsters)} monstruos")
         return True
     
     def create_3d_figure(self):
@@ -111,13 +116,13 @@ class RealTimeSimulation:
             # Verificar si quedan monstruos vivos
             monsters_alive = sum(1 for monster in self.monsters if monster.alive)
             if monsters_alive == 0:
-                print(f"\n🎉 ¡VICTORIA! Todos los monstruos han sido eliminados!")
-                print(f"📊 Simulación terminada en el paso {self.step}")
+                console.success("¡VICTORIA! Todos los monstruos han sido eliminados!")
+                console.info(f"Simulación terminada en el paso {self.step}")
                 self.running = False
                 break
             
             self.step += 1
-            print(f"\n--- Paso {self.step} ---")
+            console.step(self.step, SIMULATION_STEPS)
             
             # Ejecutar acciones de robots en secuencia completa
             for robot in self.robots:
@@ -130,44 +135,24 @@ class RealTimeSimulation:
                     
                     action = robot.act(current_perceptions, self.monsters)
 
-                    # Información de sensores actuales en formato compacto
-                    sensor_parts = []
-                    for sensor, value in current_perceptions.items():
-                        if sensor != "Energometro" and sensor != "Roboscanner_Front":
-                            sensor_parts.append(f"{sensor}={value}")
-                    
-                    sensor_string = ", ".join(sensor_parts)
-                    print(f"🤖 Robot {robot.id}:")
-                    print(f"  🔍 [regla #{rule_number if rule_number else 'default'}, {sensor_string}, Accion={action}]")
-                    print(f"  📋 Regla a ejecutar: {rule_number if rule_number else 'Comportamiento por defecto'}")
-                    print(f"  ⚡ Acción a ejecutar: {action}")
+                    # Mostrar información del robot usando el nuevo sistema
+                    console.robot_action(robot.id, action, tuple(robot.position), rule_number)
+                    console.sensor_data(robot.id, current_perceptions, rule_number)
                     
                     # Ejecutar la acción inmediatamente
                     robot.execute_action(action, self.monsters)
                     
-                    # Información del robot DESPUÉS de ejecutar la acción
-                    print(f"🤖 Robot {robot.id}:")
-                    print(f"  📍 Posición actual: {robot.position}")
-                    
                     # Obtener percepciones actuales (después del movimiento)
                     current_perceptions = robot.perceive(False)
-                    
-                    # Información de sensores actuales en formato compacto
-                    sensor_parts = []
-                    for sensor, value in current_perceptions.items():
-                        if sensor != "Energometro" and sensor != "Roboscanner_Front":
-                            sensor_parts.append(f"{sensor}={value}")
-                    
-                    sensor_string = ", ".join(sensor_parts)
-                    print(f"  🔍 [regla #{rule_number if rule_number else 'default'}, {sensor_string}, Accion={action}]")
                     
                     # Predecir siguiente acción basada en percepciones actuales
                     next_action = self.rule_engine.get_robot_action(current_perceptions)
                     next_rule_number = self.rule_engine.get_robot_rule_number(current_perceptions)
                     
-                    print(f"  🔮 Próximo movimiento:")
-                    print(f"    Regla a aplicar: {next_rule_number if next_rule_number else 'Comportamiento por defecto'}")
-                    print(f"    Acción a ejecutar: {next_action}")
+                    console.info(f"Próximo movimiento: Regla #{next_rule_number if next_rule_number else 'default'} - Acción: {next_action}")
+            
+            # Detectar y resolver colisiones entre robots
+            self._handle_robot_collisions()
             
             # Ejecutar acciones de monstruos
             for monster in self.monsters:
@@ -177,21 +162,43 @@ class RealTimeSimulation:
                     
                     # Información detallada del monstruo
                     steps_remaining = monster.K - monster.steps_since_last_action
-                    print(f"Monstruo {monster.id}: pos {monster.position} - acción a ejecutar: [{action}] - K={monster.K}, p={monster.p}, pasos_restantes={steps_remaining}")
+                    console.monster_action(monster.id, action, tuple(monster.position), 
+                                        monster.K, monster.p, steps_remaining)
+            
+            # Detectar y resolver colisiones entre monstruos
+            self._handle_monster_collisions()
             
             # Mostrar estadísticas
             alive_robots = sum(1 for r in self.robots if r.alive)
             alive_monsters = sum(1 for m in self.monsters if m.alive)
-            print(f"📊 Estado: {alive_robots} robots vivos, {alive_monsters} monstruos vivos")
+            console.stats(alive_robots, alive_monsters, self.step)
             
             # Verificar si la simulación debe terminar
             if alive_robots == 0:
-                print("🏁 Todos los robots han sido eliminados. Simulación terminada.")
+                console.error("Todos los robots han sido eliminados. Simulación terminada.")
                 self.running = False
+                
+                # Mostrar estadísticas de monstruos destruidos
+                self.show_monster_statistics()
+                
+                # Finalizar logs de robots
+                console.info("Finalizando logs de robots...")
+                self.robot_logger.finalize_all_logs()
+                console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
+                
                 break
             elif alive_monsters == 0:
-                print("🏁 Todos los monstruos han sido eliminados. Simulación terminada.")
+                console.success("Todos los monstruos han sido eliminados. Simulación terminada.")
                 self.running = False
+                
+                # Mostrar estadísticas de monstruos destruidos
+                self.show_monster_statistics()
+                
+                # Finalizar logs de robots
+                console.info("Finalizando logs de robots...")
+                self.robot_logger.finalize_all_logs()
+                console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
+                
                 break
             
             # Pausa para visualización (ajustada por velocidad)
@@ -199,30 +206,35 @@ class RealTimeSimulation:
             time.sleep(delay)
         
         if self.step >= SIMULATION_STEPS:
-            print("🏁 Simulación completada - Máximo de pasos alcanzado")
+            console.info("Simulación completada - Máximo de pasos alcanzado")
             self.running = False
+            
+            # Mostrar estadísticas de monstruos destruidos
+            self.show_monster_statistics()
     
     def execute_single_step(self):
         """Ejecuta un solo paso de la simulación"""
         if self.step >= SIMULATION_STEPS:
-            print("🏁 Simulación completada - Máximo de pasos alcanzado")
+            console.info("Simulación completada - Máximo de pasos alcanzado")
             return False
         
         # Verificar si quedan monstruos vivos
         monsters_alive = sum(1 for monster in self.monsters if monster.alive)
         if monsters_alive == 0:
-            print(f"\n🎉 ¡VICTORIA! Todos los monstruos han sido eliminados!")
-            print(f"📊 Simulación terminada en el paso {self.step}")
+            console.success("¡VICTORIA! Todos los monstruos han sido eliminados!")
+            console.info(f"Simulación terminada en el paso {self.step}")
             return False
         
         self.step += 1
-        print(f"\n--- Paso {self.step} (Paso a Paso) ---")
+        console.step(self.step, SIMULATION_STEPS)
         
         # Ejecutar acciones de robots en secuencia completa
         for robot in self.robots:
             if robot.alive:
                 # Cada robot lee sensores, evalúa regla y actúa en secuencia
-                print(f"🤖 ******* ITERACION Robot {robot.id}: {robot.vacuscope_memory}")
+                console.info(f"ITERACION Robot {robot.id}: {robot.vacuscope_memory}")
+
+                # Lee los sensores
                 current_perceptions = robot.perceive()
 
                 # Obtener el número de regla que se ejecutará
@@ -230,50 +242,32 @@ class RealTimeSimulation:
                 
                 action = robot.act(current_perceptions, self.monsters)
 
-                # Información de sensores actuales en formato compacto
-                sensor_parts = []
-                for sensor, value in current_perceptions.items():
-                    if sensor != "Energometro" and sensor != "Roboscanner_Front":
-                        sensor_parts.append(f"{sensor}={value}")
-                
-                sensor_string = ", ".join(sensor_parts)
-                print(f"🤖 Robot {robot.id}:")
-                print(f"  🔍 [regla #{rule_number if rule_number else 'default'}, {sensor_string}, Accion={action}]")
-                print(f"  📋 Regla a ejecutar: {rule_number if rule_number else 'Comportamiento por defecto'}")
-                print(f"  ⚡ Acción a ejecutar: {action}")
+                # Mostrar información del robot usando el nuevo sistema
+                console.robot_action(robot.id, action, tuple(robot.position), rule_number)
+                console.sensor_data(robot.id, current_perceptions, rule_number)
                 
                 # Ejecutar la acción inmediatamente
                 robot.execute_action(action, self.monsters)
                 
-                # Información del robot DESPUÉS de ejecutar la acción
-                print(f"🤖 Robot {robot.id}:")
-                print(f"  📍 Posición actual: {robot.position}")
-                
                 # Solo mostrar información de regla ejecutada si no es la primera iteración
                 if self.step > 1:
-                    print(f"  📋 Regla ejecutada: {rule_number if rule_number else 'Comportamiento por defecto'}")
-                    print(f"  ⚡ Acción ejecutada: {action}")
+                    console.info(f"Regla ejecutada: {rule_number if rule_number else 'Comportamiento por defecto'}")
+                    console.info(f"Acción ejecutada: {action}")
                 
                 # Obtener percepciones actuales (después del movimiento)
                 current_perceptions = robot.perceive(False)
                 
-                # Información de sensores actuales en formato compacto
-                sensor_parts = []
-                for sensor, value in current_perceptions.items():
-                    if sensor != "Energometro" and sensor != "Roboscanner_Front":
-                        sensor_parts.append(f"{sensor}={value}")
-                
-                sensor_string = ", ".join(sensor_parts)
-                print(f"  🔍 [regla #{rule_number if rule_number else 'default'}, {sensor_string}, Accion={action}]")
+                # Mostrar información de sensores actuales
+                console.sensor_data(robot.id, current_perceptions, rule_number)
                 
                 # Predecir siguiente acción basada en percepciones actuales
                 next_action = self.rule_engine.get_robot_action(current_perceptions)
                 next_rule_number = self.rule_engine.get_robot_rule_number(current_perceptions)
                 
-                print(f"  🔮 Próximo movimiento:")
-                print(f"    Regla a aplicar: {next_rule_number if next_rule_number else 'Comportamiento por defecto'}")
-                print(f"    Acción a ejecutar: {next_action}")
-                print(f"🤖 ******* ITERACION Robot {robot.id}: {robot.vacuscope_memory}")
+                console.info(f"Próximo movimiento:")
+                console.info(f"  Regla a aplicar: {next_rule_number if next_rule_number else 'Comportamiento por defecto'}")
+                console.info(f"  Acción a ejecutar: {next_action}")
+                console.info(f"ITERACION Robot {robot.id}: {robot.vacuscope_memory}")
         
         # Ejecutar acciones de monstruos
         for monster in self.monsters:
@@ -283,26 +277,99 @@ class RealTimeSimulation:
                 
                 # Información detallada del monstruo
                 steps_remaining = monster.K - monster.steps_since_last_action
-                print(f"Monstruo {monster.id}: pos {monster.position} - acción a ejecutar: [{action}] - K={monster.K}, p={monster.p}, pasos_restantes={steps_remaining}")
+                console.monster_action(monster.id, action, tuple(monster.position), 
+                                     monster.K, monster.p, steps_remaining)
         
         # Mostrar estadísticas
         alive_robots = sum(1 for r in self.robots if r.alive)
         alive_monsters = sum(1 for m in self.monsters if m.alive)
-        print(f"📊 Estado: {alive_robots} robots vivos, {alive_monsters} monstruos vivos")
+        console.stats(alive_robots, alive_monsters, self.step)
         
         # Verificar si la simulación debe terminar
         if alive_robots == 0:
-            print("🏁 Todos los robots han sido eliminados. Simulación terminada.")
+            console.error("Todos los robots han sido eliminados. Simulación terminada.")
+            
+            # Finalizar logs de robots
+            console.info("Finalizando logs de robots...")
+            self.robot_logger.finalize_all_logs()
+            console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
+            
             return False
         elif alive_monsters == 0:
-            print("🏁 Todos los monstruos han sido eliminados. Simulación terminada.")
+            console.success("Todos los monstruos han sido eliminados. Simulación terminada.")
+            
+            # Finalizar logs de robots
+            console.info("Finalizando logs de robots...")
+            self.robot_logger.finalize_all_logs()
+            console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
+            
             return False
         
         return True
     
+    def _handle_robot_collisions(self):
+        """Detecta y resuelve colisiones entre robots"""
+        collisions = self.environment.detect_robot_collisions()
+        
+        for robot_id1, robot_id2 in collisions:
+            # Encontrar los robots en la lista
+            robot1 = next((r for r in self.robots if r.id == robot_id1), None)
+            robot2 = next((r for r in self.robots if r.id == robot_id2), None)
+            
+            if robot1 and robot2 and robot1.alive and robot2.alive:
+                # El robot con menor ID sobrevive, el mayor muere
+                survivor = robot1  # robot_id1 < robot_id2 por construcción
+                victim = robot2
+                
+                console.warning(f"🚨 COLISIÓN DETECTADA: {survivor.id_formatted} y {victim.id_formatted} en posición {tuple(survivor.position)}")
+                console.info(f"✅ {survivor.id_formatted} sobrevive (menor ID)")
+                console.error(f"💀 {victim.id_formatted} muere por colisión")
+                
+                # Incrementar contador de colisiones del robot que sobrevive
+                survivor.robots_collided += 1
+                
+                # Finalizar log del robot que muere
+                if self.robot_logger:
+                    self.robot_logger.finalize_robot_log(victim.id)
+                
+                # Marcar el robot como muerto
+                victim.alive = False
+                
+                # Remover del entorno
+                self.environment.robot_positions.pop(victim.id, None)
+    
+    def _handle_monster_collisions(self):
+        """Detecta y resuelve colisiones entre monstruos"""
+        collisions = self.environment.detect_monster_collisions()
+        
+        for monster_id1, monster_id2 in collisions:
+            # Encontrar los monstruos en la lista
+            monster1 = next((m for m in self.monsters if m.id == monster_id1), None)
+            monster2 = next((m for m in self.monsters if m.id == monster_id2), None)
+            
+            if monster1 and monster2 and monster1.alive and monster2.alive:
+                # El monstruo con menor ID sobrevive, el mayor muere
+                survivor = monster1  # monster_id1 < monster_id2 por construcción
+                victim = monster2
+                
+                console.warning(f"🚨 COLISIÓN DE MONSTRUOS: {survivor.id_formatted} y {victim.id_formatted} en posición {tuple(survivor.position)}")
+                console.info(f"✅ {survivor.id_formatted} sobrevive (menor ID)")
+                console.error(f"💀 {victim.id_formatted} muere por colisión")
+                
+                # Marcar el monstruo como muerto
+                victim.alive = False
+                
+                # Remover del entorno
+                self.environment.monster_positions.pop(victim.id, None)
+    
     def reset_simulation(self):
         """Reinicia la simulación generando un nuevo mundo y reposicionando agentes"""
-        print("\n🔄 Reiniciando simulación...")
+        console.info("Reiniciando simulación...")
+        
+        # Finalizar logs de robots antes de reiniciar
+        console.info("Finalizando logs de robots antes del reinicio...")
+        self.robot_logger.finalize_all_logs()
+        console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
         
         # Detener simulación actual
         self.running = False
@@ -315,38 +382,44 @@ class RealTimeSimulation:
         self.robots.clear()
         self.monsters.clear()
         
+        # Crear nuevo logger para la nueva simulación
+        self.robot_logger = RobotLogger()
+        
         # Crear nuevos robots y monstruos
-        print(f"🤖 Creando {NUM_ROBOTS} robots y {NUM_MONSTERS} monstruos...")
+        console.info(f"Creando {NUM_ROBOTS} robots y {NUM_MONSTERS} monstruos...")
         
         for i in range(NUM_ROBOTS):
+            robot_id = i + 1  # IDs empiezan desde 1
             if ROBOT_POSITION_MODE == "fixed":
                 pos = ROBOT_FIXED_POSITION
-                print(f"   Robot {i}: Posición fija {pos}")
+                console.info(f"Robot {robot_id}: Posición fija {pos}")
             else:
                 pos = self.environment.get_random_internal_free_position()
-                print(f"   Robot {i}: Posición aleatoria interna {pos}")
+                console.info(f"Robot {robot_id}: Posición aleatoria interna {pos}")
             
             if pos:
-                robot = Robot(i, pos, self.environment, self.rule_engine)
+                robot = Robot(robot_id, pos, self.environment, self.rule_engine, self.robot_logger)
                 self.robots.append(robot)
+                self.robot_logger.register_robot(robot_id)
             else:
-                print(f"   ⚠️ No se pudo crear Robot {i}: No hay posiciones libres internas")
+                console.warning(f"No se pudo crear Robot {robot_id}: No hay posiciones libres internas")
         
         for i in range(NUM_MONSTERS):
+            monster_id = i + 1  # IDs empiezan desde 1
             if MONSTER_POSITION_MODE == "fixed":
                 pos = MONSTER_FIXED_POSITION
-                print(f"   Monstruo {i}: Posición fija {pos}")
+                console.info(f"Monstruo {monster_id}: Posición fija {pos}")
             else:
                 pos = self.environment.get_random_internal_free_position()
-                print(f"   Monstruo {i}: Posición aleatoria interna {pos}")
+                console.info(f"Monstruo {monster_id}: Posición aleatoria interna {pos}")
             
             if pos:
-                monster = Monster(i, pos, self.environment, self.rule_engine)
+                monster = Monster(monster_id, pos, self.environment, self.rule_engine)
                 self.monsters.append(monster)
             else:
-                print(f"   ⚠️ No se pudo crear Monstruo {i}: No hay posiciones libres internas")
+                console.warning(f"No se pudo crear Monstruo {monster_id}: No hay posiciones libres internas")
         
-        print(f"✅ Simulación reiniciada: {len(self.robots)} robots y {len(self.monsters)} monstruos")
+        console.success(f"Simulación reiniciada: {len(self.robots)} robots y {len(self.monsters)} monstruos")
     
     def find_available_port(self, start_port=8050, max_port=8100):
         """
@@ -370,16 +443,71 @@ class RealTimeSimulation:
                 continue
         return None
     
+    def show_monster_statistics(self):
+        """Muestra estadísticas de monstruos destruidos y colisiones entre robots"""
+        console.info("\n📊 ESTADÍSTICAS FINALES DE LA SIMULACIÓN")
+        console.info("=" * 60)
+        
+        total_monsters_destroyed = 0
+        total_robots_collided = 0
+        robots_with_kills = 0
+        robots_with_collisions = 0
+        
+        for robot in self.robots:
+            if robot.monsters_destroyed > 0:
+                robots_with_kills += 1
+                total_monsters_destroyed += robot.monsters_destroyed
+            
+            if robot.robots_collided > 0:
+                robots_with_collisions += 1
+                total_robots_collided += robot.robots_collided
+            
+            # Mostrar estadísticas individuales
+            kills_text = f"{robot.monsters_destroyed} monstruo(s)" if robot.monsters_destroyed > 0 else "0 monstruos"
+            collisions_text = f"{robot.robots_collided} robot(s)" if robot.robots_collided > 0 else "0 robots"
+            
+            if robot.monsters_destroyed > 0 or robot.robots_collided > 0:
+                console.success(f"🤖 {robot.id_formatted}: {kills_text} destruido(s), {collisions_text} eliminado(s)")
+            else:
+                console.info(f"🤖 {robot.id_formatted}: 0 monstruos destruidos, 0 robots eliminados")
+        
+        console.info("-" * 60)
+        console.success(f"🎯 TOTAL DE MONSTRUOS DESTRUIDOS: {total_monsters_destroyed}")
+        console.success(f"⚔️ TOTAL DE ROBOTS ELIMINADOS POR COLISIÓN: {total_robots_collided}")
+        console.info(f"🏆 ROBOTS CON ELIMINACIONES: {robots_with_kills}/{len(self.robots)}")
+        console.info(f"💥 ROBOTS CON COLISIONES: {robots_with_collisions}/{len(self.robots)}")
+        
+        if robots_with_kills > 0:
+            # Encontrar el robot con más eliminaciones de monstruos
+            best_monster_killer = max(self.robots, key=lambda r: r.monsters_destroyed)
+            console.success(f"🥇 MEJOR CAZADOR: {best_monster_killer.id_formatted} con {best_monster_killer.monsters_destroyed} monstruos")
+        
+        if robots_with_collisions > 0:
+            # Encontrar el robot con más colisiones
+            best_collision_killer = max(self.robots, key=lambda r: r.robots_collided)
+            console.success(f"🥊 MEJOR COMBATIENTE: {best_collision_killer.id_formatted} con {best_collision_killer.robots_collided} robots eliminados")
+        
+        console.info("=" * 60)
+    
     def cleanup(self):
         """Limpia recursos al cerrar la aplicación"""
-        print("\n🧹 Limpiando recursos...")
+        console.info("Limpiando recursos...")
         self.running = False
+        
+        # Mostrar estadísticas de monstruos destruidos
+        self.show_monster_statistics()
+        
+        # Finalizar logs de robots
+        console.info("Finalizando logs de robots...")
+        self.robot_logger.finalize_all_logs()
+        console.success(f"Logs guardados en: {self.robot_logger.output_dir}")
+        
         if self.port:
-            print(f"🔌 Puerto {self.port} liberado")
+            console.info(f"Puerto {self.port} liberado")
     
     def signal_handler(self, signum, frame):
         """Maneja señales de interrupción"""
-        print(f"\n🛑 Señal {signum} recibida. Cerrando aplicación...")
+        console.warning(f"Señal {signum} recibida. Cerrando aplicación...")
         self.cleanup()
         sys.exit(0)
     
@@ -486,6 +614,9 @@ class RealTimeSimulation:
                     self.step_mode = False
                     self.step = 0
                     
+                    # Mostrar estadísticas al detener
+                    self.show_monster_statistics()
+                    
                 elif button_id == 'reset-btn':
                     # Reiniciar simulación
                     self.reset_simulation()
@@ -538,13 +669,13 @@ class RealTimeSimulation:
         # Encontrar puerto disponible
         self.port = self.find_available_port()
         if not self.port:
-            print("❌ Error: No se encontró ningún puerto disponible en el rango 8050-8100")
+            console.error("No se encontró ningún puerto disponible en el rango 8050-8100")
             return
         
-        print("🚀 Iniciando servidor web...")
-        print(f"💡 Se abrirá automáticamente en tu navegador en http://127.0.0.1:{self.port}")
-        print("💡 Usa los botones para controlar la simulación")
-        print("💡 Presiona Ctrl+C para detener el servidor")
+        console.info("Iniciando servidor web...")
+        console.info(f"Se abrirá automáticamente en tu navegador en http://127.0.0.1:{self.port}")
+        console.info("Usa los botones para controlar la simulación")
+        console.info("Presiona Ctrl+C para detener el servidor")
         
         # Abrir navegador automáticamente después de un breve delay
         def open_browser():
@@ -558,9 +689,9 @@ class RealTimeSimulation:
         try:
             self.app.run(debug=False, host='127.0.0.1', port=self.port)
         except KeyboardInterrupt:
-            print("\n⏹️ Servidor detenido por el usuario")
+            console.warning("Servidor detenido por el usuario")
         except Exception as e:
-            print(f"❌ Error iniciando servidor: {e}")
+            console.error(f"Error iniciando servidor: {e}")
         finally:
             self.cleanup()
 
