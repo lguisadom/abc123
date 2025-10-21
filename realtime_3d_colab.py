@@ -4,12 +4,12 @@ Simulación 3D en Tiempo Real de Robots Monstruicidas vs Monstruos
 Usa Dash para crear una aplicación web que se actualiza en tiempo real
 """
 
+from jupyter_dash import JupyterDash
 import dash
 from dash import dcc, html, Input, Output
 import plotly.graph_objects as go
 import time
 import threading
-import webbrowser
 import socket
 import atexit
 import signal
@@ -23,6 +23,39 @@ from console_formatter import console
 from robot_logger import RobotLogger
 from monster_logger import MonsterLogger
 from config import *
+
+import os, shutil
+
+def ensure_data_files():
+    """Garantiza que los archivos CSV de reglas estén disponibles en 'data/'."""
+
+    local_data = os.path.join(os.getcwd(), "data")
+    os.makedirs(local_data, exist_ok=True)
+
+    # 1️⃣ los CSV ya están en el repositorio (data/)
+    robot_csv = os.path.join(local_data, "robot_rules.csv")
+    monster_csv = os.path.join(local_data, "monster_rules.csv")
+    if os.path.exists(robot_csv) and os.path.exists(monster_csv):
+        print("✅ Archivos CSV encontrados en el repositorio.")
+        return
+
+    # 2️⃣ Alternativa: copia automática desde Google Drive (si existe)
+    drive_data = "/content/drive/MyDrive/EXAMEN_PARCIAL_FUNDAMENTOS/CODE/data"
+    if os.path.exists(drive_data):
+        for file in ["robot_rules.csv", "monster_rules.csv"]:
+            src = os.path.join(drive_data, file)
+            dst = os.path.join(local_data, file)
+            if os.path.exists(src):
+                shutil.copy(src, dst)
+                print(f"📄 Copiado desde Drive: {file}")
+        return
+
+    print("⚠️ No se encontraron los archivos CSV de reglas.")
+    print("👉 Sube 'robot_rules.csv' y 'monster_rules.csv' a la carpeta 'data/' del proyecto.")
+    print("O colócalos en tu Drive en: /content/drive/MyDrive/EXAMEN_PARCIAL_FUNDAMENTOS/CODE/data/")
+    raise FileNotFoundError("No se hallaron los archivos de reglas requeridos.")
+
+ensure_data_files()
 
 class RealTimeSimulation:
     def __init__(self):
@@ -593,7 +626,7 @@ class RealTimeSimulation:
     
     def create_dash_app(self):
         """Crea la aplicación Dash"""
-        self.app = dash.Dash(__name__)
+        self.app = JupyterDash(__name__)
         
         self.app.layout = html.Div([
             html.H1("🤖 Simulación Robots vs Monstruos - TIEMPO REAL", 
@@ -739,35 +772,26 @@ class RealTimeSimulation:
             return fig, status, interval_disabled, dynamic_interval, speed_display, step_btn_style
     
     def run(self):
-        """Ejecuta la simulación"""
+        """Ejecuta la simulación completa (versión Colab-compatible)"""
         if not self.initialize_simulation():
             return
-        
+
         print("\n🎬 Configurando aplicación web...")
         self.create_dash_app()
-        
-        # Encontrar puerto disponible
+
+        # Intentar asignar puerto disponible
         self.port = self.find_available_port()
         if not self.port:
             console.error("No se encontró ningún puerto disponible en el rango 8050-8100")
             return
-        
-        console.info("Iniciando servidor web...")
-        console.info(f"Se abrirá automáticamente en tu navegador en http://127.0.0.1:{self.port}")
-        console.info("Usa los botones para controlar la simulación")
-        console.info("Presiona Ctrl+C para detener el servidor")
-        
-        # Abrir navegador automáticamente después de un breve delay
-        def open_browser():
-            time.sleep(2)  # Esperar 2 segundos para que el servidor inicie
-            webbrowser.open(f'http://127.0.0.1:{self.port}')
-        
-        browser_thread = threading.Thread(target=open_browser)
-        browser_thread.daemon = True
-        browser_thread.start()
-        
+
+        console.info("✅ Servidor Dash listo para ejecutarse en Colab")
+        console.info("🔹 Usa los botones para controlar la simulación")
+        console.info("🔹 La aplicación se mostrará directamente en esta celda (modo inline)")
+
         try:
-            self.app.run(debug=False, host='127.0.0.1', port=self.port)
+            # 🚀 Mostrar la aplicación directamente dentro del notebook
+            self.app.run_server(mode='inline', port=self.port)
         except KeyboardInterrupt:
             console.warning("Servidor detenido por el usuario")
         except Exception as e:
@@ -775,11 +799,8 @@ class RealTimeSimulation:
         finally:
             self.cleanup()
 
-def main():
-    """Función principal"""
-    simulation = RealTimeSimulation()
-    simulation.run()
 
 if __name__ == "__main__":
-    main()
-
+    sim = RealTimeSimulation()
+    sim.run()  # Ejecutar sin asignar ni devolver nada explícitamente
+    raise SystemExit  # ← evita que Colab re-renderice la salida automáticamente

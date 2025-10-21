@@ -8,7 +8,7 @@ Regla,Energometro,Lado1_Top,Lado2_Left,Vacuoscopio_Front,Lado0_Front,Roboscanner
 7,0,0,0,0,0,0,0,1,"{""tipo"": ""move"", ""directions"": [""x-90""]}"
 8,0,0,0,0,1,0,1,0,"{""tipo"": ""move"", ""directions"": [""z+90""]}"
 9,0,0,1,0,1,0,0,0,"{""tipo"": ""move"", ""directions"": [""z+90""]}"
-10,0,1,0,0,1,0,0,0,"{""tipo"": ""move"", ""directions"": [""front""]}"
+10,0,1,0,0,1,0,0,0,"{""tipo"": ""move"", ""directions"": [""z+90""]}"
 11,0,0,0,0,1,0,0,1,"{""tipo"": ""move"", ""directions"": [""z+90""]}"
 12,0,0,1,0,0,0,1,0,"{""tipo"": ""move_random"", ""directions"": [""y+90"", ""y-90""], ""probability"": 0.5}"
 13,0,1,0,0,0,0,1,0,"{""tipo"": ""move_random"", ""directions"": [""x+90"", ""y-90""], ""probability"": 0.5}"

@@ -174,3 +174,4 @@ demo_*.py
 # Archivos de documentación generados
 docs/
 build/
+instructions/

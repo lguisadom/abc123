@@ -1,6 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional
 from config import MONSTER_FREQUENCY, MONSTER_PROBABILITY
+from console_formatter import console
 
 class Monster:
     """
@@ -11,7 +12,7 @@ class Monster:
     Su comportamiento está completamente definido por el archivo monster_rules.csv
     """
     
-    def __init__(self, monster_id: int, position: List[int], environment, rule_engine):
+    def __init__(self, monster_id: int, position: List[int], environment, rule_engine, logger=None):
         """
         Inicializa un monstruo
         
@@ -20,11 +21,14 @@ class Monster:
             position: Posición inicial (x, y, z)
             environment: Referencia al entorno
             rule_engine: Motor de reglas para comportamiento
+            logger: Sistema de logging para operaciones
         """
         self.id = monster_id
+        self.id_formatted = f"M{monster_id:03d}"  # Formato M001, M002, etc.
         self.position = list(position)  # Convertir a lista para mutabilidad
         self.environment = environment
         self.rule_engine = rule_engine
+        self.logger = logger
         
         # Estado del monstruo
         self.alive = True
@@ -81,27 +85,92 @@ class Monster:
             str: Acción ejecutada
         """
         if not self.alive:
+            # Log para monstruo muerto
+            if self.logger:
+                operation_data = {
+                    'position': list(self.position),
+                    'perceptions': perceptions,
+                    'rule_number': None,
+                    'action': 'none',
+                    'new_position': list(self.position),
+                    'steps_remaining': self.K - self.steps_since_last_action,
+                    'K': self.K,
+                    'p': self.p,
+                    'alive': False
+                }
+                self.logger.store_monster_operation(self.id, operation_data)
             return "none"
+        
+        # Calcular pasos restantes
+        steps_remaining = self.K - self.steps_since_last_action
         
         # Verificar si puede actuar según parámetro K
         self.steps_since_last_action += 1
         if self.steps_since_last_action < self.K:
+            # Log para espera por K
+            if self.logger:
+                operation_data = {
+                    'position': list(self.position),
+                    'perceptions': perceptions,
+                    'rule_number': None,
+                    'action': 'wait',
+                    'new_position': list(self.position),
+                    'steps_remaining': steps_remaining - 1,
+                    'K': self.K,
+                    'p': self.p,
+                    'alive': True
+                }
+                self.logger.store_monster_operation(self.id, operation_data)
             return "wait"
         
         # Verificar probabilidad p
         if random.random() > self.p:
             self.steps_since_last_action = 0  # Resetear contador
+            # Log para espera por probabilidad
+            if self.logger:
+                operation_data = {
+                    'position': list(self.position),
+                    'perceptions': perceptions,
+                    'rule_number': None,
+                    'action': 'wait',
+                    'new_position': list(self.position),
+                    'steps_remaining': self.K,
+                    'K': self.K,
+                    'p': self.p,
+                    'alive': True
+                }
+                self.logger.store_monster_operation(self.id, operation_data)
             return "wait"
         
         # Usar motor de reglas si está disponible
         if self.rule_engine:
             action = self.rule_engine.get_monster_action(perceptions)
+            rule_number = self.rule_engine.get_monster_rule_number(perceptions)
         else:
             # Comportamiento por defecto si no hay motor de reglas
             action = self._default_behavior(perceptions)
+            rule_number = None
+        
+        # Guardar posición anterior
+        old_position = list(self.position)
         
         # Ejecutar la acción
         self._execute_action(action)
+        
+        # Log para acción ejecutada
+        if self.logger:
+            operation_data = {
+                'position': old_position,
+                'perceptions': perceptions,
+                'rule_number': rule_number,
+                'action': action,
+                'new_position': list(self.position),
+                'steps_remaining': self.K,
+                'K': self.K,
+                'p': self.p,
+                'alive': True
+            }
+            self.logger.store_monster_operation(self.id, operation_data)
         
         # Resetear contador de pasos
         self.steps_since_last_action = 0
@@ -166,7 +235,7 @@ class Monster:
                 self._move_to_direction(chosen_direction)
                 
         except Exception as e:
-            print(f"❌ Error ejecutando acción probabilística: {e}")
+            console.error(f"Error ejecutando acción probabilística: {e}")
     
     def _execute_deterministic_action(self, action: str):
         """
@@ -186,7 +255,7 @@ class Monster:
             self._move_to_direction(direction)
             
         except Exception as e:
-            print(f"❌ Error ejecutando acción determinística: {e}")
+            console.error(f"Error ejecutando acción determinística: {e}")
     
     def _move_to_direction(self, direction: str):
         """

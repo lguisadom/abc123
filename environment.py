@@ -8,7 +8,7 @@ import numpy as np
 import plotly.graph_objects as go
 import random
 from typing import List, Tuple, Optional
-from config import WORLD_SIZE, PERCENTAGE_FREE, PERCENTAGE_EMPTY, CUBE_SIZE, FIGURE_WIDTH, FIGURE_HEIGHT, MONSTER_VISUALIZATION, MONSTER_SIZE_PERCENTAGE, INTERNAL_EMPTY_RATIO, FREE_ZONE_OPACITY, MONSTER_OPACITY, MONSTER_SHADOW_OPACITY, BORDER_OPACITY, MONSTER_CENTER_OFFSET
+from config import WORLD_SIZE, PERCENTAGE_FREE, PERCENTAGE_EMPTY, CUBE_SIZE, FIGURE_WIDTH, FIGURE_HEIGHT, MONSTER_VISUALIZATION, MONSTER_SIZE_PERCENTAGE, INTERNAL_EMPTY_RATIO, FREE_ZONE_OPACITY, MONSTER_OPACITY, MONSTER_SHADOW_OPACITY, BORDER_OPACITY, MONSTER_CENTER_OFFSET, ROBOT_COLOR, ROBOT_ARROW_COLOR, MONSTER_COLOR_CLOUD, MONSTER_COLOR_MIST, MONSTER_COLOR_ENERGY, MONSTER_COLOR_VOID, MONSTER_COLOR_SHADOW, FREE_ZONE_COLOR, EMPTY_ZONE_COLOR, CUBE_BORDER_COLOR
 
 class Environment:
     """
@@ -45,10 +45,12 @@ class Environment:
         """Genera el mundo aleatoriamente según los parámetros"""
         total_cells = self.N ** 3
         
-        # Calcular número de zonas vacías INTERNAS (no fronteras)
-        # Reducir significativamente el porcentaje para garantizar posiciones libres
+        # Calcular celdas internas (excluyendo bordes)
         internal_cells = (self.N - 2) ** 3 if self.N > 2 else 0
-        num_internal_empty = int(internal_cells * (self.Psoft * INTERNAL_EMPTY_RATIO * 0.5))  # Reducir a la mitad
+        
+        # Aplicar porcentajes SOLO al interior del mundo
+        num_internal_empty = int(internal_cells * self.Psoft)  # Zonas vacías internas
+        num_internal_free = internal_cells - num_internal_empty  # Zonas libres internas
         
         # Crear lista de posiciones INTERNAS (no fronteras)
         internal_positions = [(x, y, z) for x in range(1, self.N-1) 
@@ -64,7 +66,7 @@ class Environment:
             for pos in empty_internal_positions:
                 self.world[pos] = -1
         
-        # Las zonas libres quedan como 0 (valor por defecto)
+        # Las zonas libres internas quedan como 0 (valor por defecto)
         
         # Crear fronteras invisibles (sin color, solo límites)
         self._create_boundaries()
@@ -89,6 +91,75 @@ class Environment:
         # Solo las zonas libres (0) son válidas, las zonas vacías (-1) y fronteras (-2) no
         return self.world[x, y, z] == 0
     
+    def is_valid_position_for_robot(self, x: int, y: int, z: int, exclude_robot_id: int = None) -> bool:
+        """Verifica si una posición es válida para un robot (zona libre y sin otros robots)"""
+        if not self.is_valid_position(x, y, z):
+            return False
+        
+        # Verificar si hay otros robots en esa posición
+        position = (x, y, z)
+        for robot_id, robot_pos in self.robot_positions.items():
+            if robot_pos == position and (exclude_robot_id is None or robot_id != exclude_robot_id):
+                return False
+        
+        return True
+    
+    def detect_robot_collisions(self) -> List[Tuple[int, int]]:
+        """
+        Detecta colisiones entre robots (múltiples robots en la misma posición)
+        
+        Returns:
+            List[Tuple[int, int]]: Lista de tuplas (robot_id1, robot_id2) donde robot_id1 < robot_id2
+        """
+        collisions = []
+        positions = {}  # {position: [robot_ids]}
+        
+        # Agrupar robots por posición
+        for robot_id, position in self.robot_positions.items():
+            if position not in positions:
+                positions[position] = []
+            positions[position].append(robot_id)
+        
+        # Encontrar posiciones con múltiples robots
+        for position, robot_ids in positions.items():
+            if len(robot_ids) > 1:
+                # Ordenar IDs para que el menor esté primero
+                robot_ids.sort()
+                # Crear pares de colisión (menor ID, mayor ID)
+                for i in range(len(robot_ids)):
+                    for j in range(i + 1, len(robot_ids)):
+                        collisions.append((robot_ids[i], robot_ids[j]))
+        
+        return collisions
+    
+    def detect_monster_collisions(self) -> List[Tuple[int, int]]:
+        """
+        Detecta colisiones entre monstruos (múltiples monstruos en la misma posición)
+        
+        Returns:
+            List[Tuple[int, int]]: Lista de tuplas (monster_id1, monster_id2) donde monster_id1 < monster_id2
+        """
+        collisions = []
+        positions = {}  # {position: [monster_ids]}
+        
+        # Agrupar monstruos por posición
+        for monster_id, position in self.monster_positions.items():
+            if position not in positions:
+                positions[position] = []
+            positions[position].append(monster_id)
+        
+        # Encontrar posiciones con múltiples monstruos
+        for position, monster_ids in positions.items():
+            if len(monster_ids) > 1:
+                # Ordenar IDs para que el menor esté primero
+                monster_ids.sort()
+                # Crear pares de colisión (menor ID, mayor ID)
+                for i in range(len(monster_ids)):
+                    for j in range(i + 1, len(monster_ids)):
+                        collisions.append((monster_ids[i], monster_ids[j]))
+        
+        return collisions
+    
     def get_free_positions(self) -> List[Tuple[int, int, int]]:
         """Obtiene todas las posiciones libres disponibles"""
         free_positions = []
@@ -98,6 +169,26 @@ class Environment:
                     if self.world[x, y, z] == 0:
                         free_positions.append((x, y, z))
         return free_positions
+    
+    def count_free_zones(self) -> int:
+        """Cuenta el número total de zonas libres en el mundo"""
+        count = 0
+        for x in range(self.N):
+            for y in range(self.N):
+                for z in range(self.N):
+                    if self.world[x, y, z] == 0:
+                        count += 1
+        return count
+    
+    def count_empty_zones(self) -> int:
+        """Cuenta el número total de zonas vacías en el mundo"""
+        count = 0
+        for x in range(self.N):
+            for y in range(self.N):
+                for z in range(self.N):
+                    if self.world[x, y, z] == -1:
+                        count += 1
+        return count
     
     def get_internal_free_positions(self) -> List[Tuple[int, int, int]]:
         """Obtiene todas las posiciones libres internas (no fronteras)"""
@@ -362,10 +453,10 @@ class Environment:
     def _add_environment_dense(self, fig):
         """Agrega cubos individuales usando un enfoque de cubos 3D reales"""
         # Crear cubos 3D reales para zonas libres
-        self._add_cube_cluster(fig, 'free', 'lightgreen', FREE_ZONE_OPACITY)
+        self._add_cube_cluster(fig, 'free', FREE_ZONE_COLOR, FREE_ZONE_OPACITY)
         
         # Crear cubos 3D reales para zonas vacías internas
-        self._add_cube_cluster(fig, 'empty', 'red', 0.4)
+        self._add_cube_cluster(fig, 'empty', EMPTY_ZONE_COLOR, 0.4)
         
         # Agregar grilla 3D para delimitar cubos
         self._add_3d_grid(fig)
@@ -507,7 +598,7 @@ class Environment:
                 x=edge[0], y=edge[1], z=edge[2],
                 mode='lines',
                 line=dict(
-                    color='gray',
+                    color=CUBE_BORDER_COLOR,
                     width=2
                 ),
                 showlegend=False,
@@ -527,12 +618,12 @@ class Environment:
             if robot.alive:
                 x, y, z = robot.position
                 orientation = robot.orientation
-                robot_data.append((x, y, z, orientation))
+                robot_data.append((x, y, z, orientation, robot.id_formatted))
         
         # Solo agregar si hay robots vivos
         if robot_data:
             # Crear cubos sólidos para cada robot
-            for x, y, z, orientation in robot_data:
+            for x, y, z, orientation, robot_id in robot_data:
                 # Crear un cubo sólido para el robot
                 vertices = self._get_cube_vertices(x, y, z)
                 faces = self._get_cube_faces(0)  # Offset 0 para cada robot individual
@@ -544,10 +635,10 @@ class Environment:
                     i=[face[0] for face in faces],
                     j=[face[1] for face in faces],
                     k=[face[2] for face in faces],
-                    color='cyan',
+                    color=ROBOT_COLOR,
                     opacity=0.8,  # Semi-transparente para distinguir del entorno
                     name=f'Robots ({robots_alive})',
-                    hovertemplate=f'<b>Robot</b><br>Pos: ({x}, {y}, {z})<br>Orientación: {orientation}<extra></extra>',
+                    hovertemplate=f'<b>{robot_id}</b><br>Pos: ({x}, {y}, {z})<br>Orientación: {orientation}<extra></extra>',
                     showlegend=False  # Solo mostrar una entrada en la leyenda
                 ))
                 
@@ -558,7 +649,7 @@ class Environment:
             fig.add_trace(go.Scatter3d(
                 x=[], y=[], z=[],
                 mode='markers',
-                marker=dict(color='cyan', size=10, symbol='square'),
+                marker=dict(color=ROBOT_COLOR, size=10, symbol='square'),
                 name=f'Robots ({robots_alive})',
                 showlegend=True,
                 hovertemplate='<extra></extra>'
@@ -588,10 +679,10 @@ class Environment:
             y=[center_y, end_y],
             z=[center_z, end_z],
             mode='lines+markers',
-            line=dict(color='red', width=8),  # Línea más gruesa
+            line=dict(color=ROBOT_ARROW_COLOR, width=8),  # Línea más gruesa
             marker=dict(
                 size=[0, 15],  # Marcador más grande en el final
-                color='red',
+                color=ROBOT_ARROW_COLOR,
                 symbol=['circle', 'circle'],
                 line=dict(width=3, color='darkred')
             ),
@@ -628,6 +719,8 @@ class Environment:
     def _add_monsters_as_cloud(self, fig, monsters):
         """Monstruos como nubes rojas difusas que ocupan el cubo completo"""
         monster_x, monster_y, monster_z = [], [], []
+        monster_real_positions = []  # Para almacenar las posiciones reales
+        monster_ids = []  # Para almacenar los IDs formateados
         
         for monster in monsters:
             x, y, z = monster.position
@@ -635,6 +728,9 @@ class Environment:
             monster_x.append(x + MONSTER_CENTER_OFFSET)
             monster_y.append(y + MONSTER_CENTER_OFFSET)
             monster_z.append(z + MONSTER_CENTER_OFFSET)
+            # Guardar la posición real para el tooltip
+            monster_real_positions.append(f"({x}, {y}, {z})")
+            monster_ids.append(monster.id_formatted)
         
         # Calcular tamaño basado en el porcentaje del cubo
         monster_size = 80 * MONSTER_SIZE_PERCENTAGE  # Base de 80, escalado por porcentaje
@@ -644,7 +740,7 @@ class Environment:
             mode='markers',
             marker=dict(
                 size=monster_size,  # Tamaño configurable basado en porcentaje del cubo
-                color='red',
+                color=MONSTER_COLOR_CLOUD,
                 opacity=0.6,  # Semi-transparente como nube
                 symbol='circle',
                 line=dict(
@@ -654,19 +750,25 @@ class Environment:
                 sizemode='diameter',  # Usar diámetro en lugar de área
                 sizeref=1  # Referencia de tamaño
             ),
+            customdata=list(zip(monster_ids, monster_real_positions)),  # IDs y coordenadas reales para el tooltip
             name=f'Monstruos ({len(monsters)})',
-            hovertemplate='<b>Monstruo</b><br>Pos: (%{x:.0f}, %{y:.0f}, %{z:.0f})<extra></extra>'
+            hovertemplate='<b>%{customdata[0]}</b><br>Pos: %{customdata[1]}<extra></extra>'
         ))
     
     def _add_monsters_as_mist(self, fig, monsters):
         """Monstruos como niebla púrpura que ocupa el cubo completo"""
         monster_x, monster_y, monster_z = [], [], []
+        monster_real_positions = []  # Para almacenar las posiciones reales
+        monster_ids = []  # Para almacenar los IDs formateados
         
         for monster in monsters:
             x, y, z = monster.position
             monster_x.append(x + MONSTER_CENTER_OFFSET)
             monster_y.append(y + MONSTER_CENTER_OFFSET)
             monster_z.append(z + MONSTER_CENTER_OFFSET)
+            # Guardar la posición real para el tooltip
+            monster_real_positions.append(f"({x}, {y}, {z})")
+            monster_ids.append(monster.id_formatted)
         
         # Calcular tamaño basado en el porcentaje del cubo
         monster_size = 80 * MONSTER_SIZE_PERCENTAGE  # Base de 80, escalado por porcentaje
@@ -676,7 +778,7 @@ class Environment:
             mode='markers',
             marker=dict(
                 size=monster_size,  # Tamaño configurable basado en porcentaje del cubo
-                color='purple',
+                color=MONSTER_COLOR_MIST,
                 opacity=0.4,  # Muy transparente como niebla
                 symbol='circle',
                 line=dict(
@@ -686,26 +788,32 @@ class Environment:
                 sizemode='diameter',  # Usar diámetro en lugar de área
                 sizeref=1  # Referencia de tamaño
             ),
+            customdata=list(zip(monster_ids, monster_real_positions)),  # IDs y coordenadas reales para el tooltip
             name=f'Monstruos ({len(monsters)})',
-            hovertemplate='<b>Monstruo</b><br>Pos: (%{x:.0f}, %{y:.0f}, %{z:.0f})<extra></extra>'
+            hovertemplate='<b>%{customdata[0]}</b><br>Pos: %{customdata[1]}<extra></extra>'
         ))
     
     def _add_monsters_as_energy(self, fig, monsters):
         """Monstruos como energía eléctrica amarilla que ocupa el cubo completo"""
         monster_x, monster_y, monster_z = [], [], []
+        monster_real_positions = []  # Para almacenar las posiciones reales
+        monster_ids = []  # Para almacenar los IDs formateados
         
         for monster in monsters:
             x, y, z = monster.position
             monster_x.append(x + MONSTER_CENTER_OFFSET)
             monster_y.append(y + MONSTER_CENTER_OFFSET)
             monster_z.append(z + MONSTER_CENTER_OFFSET)
+            # Guardar la posición real para el tooltip
+            monster_real_positions.append(f"({x}, {y}, {z})")
+            monster_ids.append(monster.id_formatted)
         
         fig.add_trace(go.Scatter3d(
             x=monster_x, y=monster_y, z=monster_z,
             mode='markers',
             marker=dict(
                 size=22,
-                color='yellow',
+                color=MONSTER_COLOR_ENERGY,
                 opacity=MONSTER_OPACITY,
                 symbol='diamond',  # Forma de diamante para energía
                 line=dict(
@@ -713,53 +821,65 @@ class Environment:
                     width=2
                 )
             ),
+            customdata=list(zip(monster_ids, monster_real_positions)),  # IDs y coordenadas reales para el tooltip
             name=f'Monstruos ({len(monsters)})',
-            hovertemplate='<b>Monstruo</b><br>Pos: (%{x:.0f}, %{y:.0f}, %{z:.0f})<extra></extra>'
+            hovertemplate='<b>%{customdata[0]}</b><br>Pos: %{customdata[1]}<extra></extra>'
         ))
     
     def _add_monsters_as_void(self, fig, monsters):
         """Monstruos como vacío negro que ocupa el cubo completo"""
         monster_x, monster_y, monster_z = [], [], []
+        monster_real_positions = []  # Para almacenar las posiciones reales
+        monster_ids = []  # Para almacenar los IDs formateados
         
         for monster in monsters:
             x, y, z = monster.position
             monster_x.append(x + MONSTER_CENTER_OFFSET)
             monster_y.append(y + MONSTER_CENTER_OFFSET)
             monster_z.append(z + MONSTER_CENTER_OFFSET)
+            # Guardar la posición real para el tooltip
+            monster_real_positions.append(f"({x}, {y}, {z})")
+            monster_ids.append(monster.id_formatted)
         
         fig.add_trace(go.Scatter3d(
             x=monster_x, y=monster_y, z=monster_z,
             mode='markers',
             marker=dict(
                 size=28,
-                color='black',
+                color=MONSTER_COLOR_VOID,
                 opacity=0.8,
                 symbol='square',  # Forma cuadrada para vacío
                 line=dict(
-                    color='gray',
+                    color=MONSTER_COLOR_SHADOW,
                     width=1
                 )
             ),
+            customdata=list(zip(monster_ids, monster_real_positions)),  # IDs y coordenadas reales para el tooltip
             name=f'Monstruos ({len(monsters)})',
-            hovertemplate='<b>Monstruo</b><br>Pos: (%{x:.0f}, %{y:.0f}, %{z:.0f})<extra></extra>'
+            hovertemplate='<b>%{customdata[0]}</b><br>Pos: %{customdata[1]}<extra></extra>'
         ))
     
     def _add_monsters_as_shadow(self, fig, monsters):
         """Monstruos como sombras grises que ocupan el cubo completo"""
         monster_x, monster_y, monster_z = [], [], []
+        monster_real_positions = []  # Para almacenar las posiciones reales
+        monster_ids = []  # Para almacenar los IDs formateados
         
         for monster in monsters:
             x, y, z = monster.position
             monster_x.append(x + MONSTER_CENTER_OFFSET)
             monster_y.append(y + MONSTER_CENTER_OFFSET)
             monster_z.append(z + MONSTER_CENTER_OFFSET)
+            # Guardar la posición real para el tooltip
+            monster_real_positions.append(f"({x}, {y}, {z})")
+            monster_ids.append(monster.id_formatted)
         
         fig.add_trace(go.Scatter3d(
             x=monster_x, y=monster_y, z=monster_z,
             mode='markers',
             marker=dict(
                 size=24,
-                color='gray',
+                color=MONSTER_COLOR_SHADOW,
                 opacity=MONSTER_SHADOW_OPACITY,
                 symbol='circle',
                 line=dict(
@@ -767,6 +887,7 @@ class Environment:
                     width=1
                 )
             ),
+            customdata=list(zip(monster_ids, monster_real_positions)),  # IDs y coordenadas reales para el tooltip
             name=f'Monstruos ({len(monsters)})',
-            hovertemplate='<b>Monstruo</b><br>Pos: (%{x:.0f}, %{y:.0f}, %{z:.0f})<extra></extra>'
+            hovertemplate='<b>%{customdata[0]}</b><br>Pos: %{customdata[1]}<extra></extra>'
         ))

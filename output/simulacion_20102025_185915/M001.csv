@@ -1,0 +1,4 @@
+#,Pos,Top,Left,Front,Right,Down,Behind,n_free,p,Regla,Accion,Steps_Remaining,K,Alive
+1,"[2, 2, 2]",0,0,0,0,0,0,,0.1,,wait,9,10,True
+2,"[2, 2, 2]",0,0,0,0,0,0,,0.1,,wait,8,10,True
+3,"[2, 2, 2]",0,0,0,0,0,0,,0.1,,wait,7,10,True

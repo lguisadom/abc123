@@ -78,11 +78,38 @@ class RuleEngine:
                     return rule['Accion']
             
             # Si no se encuentra regla específica, usar acción por defecto
-            return '{"tipo": "move", "directions": ["front"]}'
+            return '{"tipo": "move", "directions": ["z+90"]}'
             
         except Exception as e:
             print(f"❌ Error obteniendo acción de robot: {e}")
-            return '{"tipo": "move", "directions": ["front"]}'
+            return '{"tipo": "move", "directions": ["z+90"]}'
+    
+    def get_monster_rule_number(self, perception: Dict[str, any]) -> Optional[int]:
+        """
+        Obtiene el número de regla para un monstruo basada en su percepción
+        
+        Args:
+            perception: Diccionario con los valores de percepción del monstruo
+                       Formato: {Top, Left, Front, Right, Down, Behind}
+            
+        Returns:
+            int: Número de regla aplicada, o None si no se encuentra regla coincidente
+        """
+        if self.monster_rules is None:
+            return None
+        
+        try:
+            # Buscar regla que coincida con la percepción
+            for _, rule in self.monster_rules.iterrows():
+                if self._matches_monster_perception(rule, perception):
+                    return rule['Regla']
+            
+            # Si no se encuentra regla específica, retornar None
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error obteniendo número de regla de monstruo: {e}")
+            return None
     
     def get_monster_action(self, perception: Dict[str, any]) -> Optional[str]:
         """
