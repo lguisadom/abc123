@@ -8,7 +8,7 @@
 # =============================================================================
 # 🌍 CONFIGURACIÓN DEL ENTORNO 3D
 # =============================================================================
-WORLD_SIZE = 5            # Tamaño del mundo (N×N×N) - Reducido para mejor visualización
+WORLD_SIZE = 7            # Tamaño del mundo (N×N×N) - Reducido para mejor visualización
 PERCENTAGE_FREE = 0.9       # Porcentaje de zonas libres en el INTERIOR (90%)
 PERCENTAGE_EMPTY = 0.1      # Porcentaje de zonas vacías en el INTERIOR (10%)
 INTERNAL_EMPTY_RATIO = 0.3  # [DEPRECADO] Ya no se usa - se mantiene por compatibilidad
